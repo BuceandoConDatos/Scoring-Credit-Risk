@@ -1,0 +1,432 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Simulador de Crédito</title>
+<style>
+  /* Layout: página única centrada; cabecera con métricas, tarjeta de formulario, tarjeta de resultado */
+  :root{
+    --bg:#f5f7f9; --surface:#ffffff; --surface-2:#eef1f5;
+    --ink:#192129; --muted:#5c6773; --line:#dfe4ea;
+    --accent:#15607a; --accent-ink:#ffffff;
+    --good:#1f7a4d; --good-bg:#e6f3ec;
+    --bad:#b23b3b; --bad-bg:#f8e9e9;
+    --warn:#9a6a12;
+    --r:12px; --r-sm:8px;
+    --font:"IBM Plex Sans",system-ui,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg:#0f1419; --surface:#171d24; --surface-2:#1f272f;
+    --ink:#e7ebf0; --muted:#95a1ae; --line:#2a333d;
+    --accent:#4aa6c4; --accent-ink:#0b1116;
+    --good:#53c08c; --good-bg:#15241d;
+    --bad:#e2756f; --bad-bg:#2a1718;
+    --warn:#d6a44a;
+    color-scheme:dark;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#0f1419; --surface:#171d24; --surface-2:#1f272f;
+    --ink:#e7ebf0; --muted:#95a1ae; --line:#2a333d;
+    --accent:#4aa6c4; --accent-ink:#0b1116;
+    --good:#53c08c; --good-bg:#15241d;
+    --bad:#e2756f; --bad-bg:#2a1718;
+    --warn:#d6a44a;
+    color-scheme:dark;
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font);line-height:1.5}
+  .wrap{max-width:780px;margin:0 auto;padding-inline:16px;padding-block:28px 48px;display:flex;flex-direction:column;gap:20px}
+
+  h1{font-size:1.5rem;font-weight:600;margin:0;letter-spacing:-.01em;text-wrap:balance}
+  .sub{color:var(--muted);font-size:.9rem;margin:0}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+  .card h2{font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:0 0 14px}
+
+  /* cabecera de métricas */
+  .metrics{display:flex;flex-wrap:wrap;gap:10px}
+  .metric{flex:1 1 90px;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px}
+  .metric .k{font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .metric .v{font-family:var(--mono);font-size:1.15rem;font-weight:500;font-variant-numeric:tabular-nums;margin-top:2px}
+
+  /* barra de carga del modelo */
+  .loader{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+  .status{font-size:.85rem;color:var(--muted);min-width:0;flex:1 1 200px}
+  .status b{color:var(--ink);font-weight:600}
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:.72rem;font-weight:600;padding:3px 8px;border-radius:999px;white-space:nowrap}
+  .badge.ok{background:var(--good-bg);color:var(--good)}
+  .badge.demo{background:var(--surface-2);color:var(--muted)}
+  .badge.err{background:var(--bad-bg);color:var(--bad)}
+
+  button,.filebtn{font-family:inherit;font-size:.9rem;font-weight:500;border-radius:var(--r-sm);border:1px solid var(--line);
+    background:var(--surface-2);color:var(--ink);padding:9px 16px;cursor:pointer;transition:background .15s,border-color .15s}
+  button:hover,.filebtn:hover{border-color:var(--accent)}
+  .primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+  .primary:hover{filter:brightness(1.07)}
+  .filebtn input{display:none}
+
+  /* formulario */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:520px){.grid{grid-template-columns:1fr}}
+  .field{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .field label{font-size:.82rem;font-weight:500}
+  .field .hint{font-size:.72rem;color:var(--muted)}
+  .inrow{display:flex;align-items:center;gap:8px}
+  .field input[type=number]{flex:1;min-width:0;font-family:var(--mono);font-size:.92rem;font-variant-numeric:tabular-nums;
+    background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 10px}
+  .field input[type=number]:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+  .field input:disabled{opacity:.45}
+  .nk{display:flex;align-items:center;gap:4px;font-size:.72rem;color:var(--muted);white-space:nowrap;cursor:pointer;user-select:none}
+  .nk input{accent-color:var(--accent)}
+
+  details.adv{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+  details.adv>summary{cursor:pointer;font-size:.85rem;font-weight:500;color:var(--accent);list-style:none}
+  details.adv>summary::-webkit-details-marker{display:none}
+  details.adv>summary::before{content:"▸ ";font-size:.8em}
+  details.adv[open]>summary::before{content:"▾ "}
+  details.adv .grid{margin-top:14px}
+
+  .actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+  .actions .primary{flex:1 1 auto}
+
+  /* resultado */
+  #result[hidden]{display:none}
+  .verdict{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  .verdict .tag{font-size:1.15rem;font-weight:600}
+  .verdict.ap .tag{color:var(--good)}
+  .verdict.dn .tag{color:var(--bad)}
+  .verdict .score{font-family:var(--mono);font-size:1.05rem;font-variant-numeric:tabular-nums}
+
+  .gauge{position:relative;height:12px;border-radius:999px;background:var(--surface-2);overflow:hidden;margin:6px 0 4px}
+  .gauge .fill{position:absolute;inset:0 auto 0 0;border-radius:999px}
+  .gauge .fill.ap{background:var(--good)}
+  .gauge .fill.dn{background:var(--bad)}
+  .thrline{position:relative;height:16px;margin-bottom:10px}
+  .thrline .mark{position:absolute;top:0;transform:translateX(-50%);font-size:.66rem;color:var(--muted);white-space:nowrap}
+  .thrline .mark::before{content:"";display:block;width:2px;height:7px;background:var(--muted);margin:0 auto 1px}
+  .cap{font-size:.74rem;color:var(--muted);margin:10px 0 0}
+
+  .why{margin-top:18px;border-top:1px solid var(--line);padding-top:14px}
+  .why h3{font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:0 0 10px}
+  .contrib{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:.86rem}
+  .contrib:last-child{border-bottom:none}
+  .contrib .dir{font-family:var(--mono);font-weight:600;white-space:nowrap}
+  .contrib .dir.up{color:var(--bad)}
+  .contrib .dir.down{color:var(--good)}
+  .contrib .nm{flex:1;min-width:0}
+  .contrib .nm b{font-weight:600}
+  .contrib .vv{font-family:var(--mono);color:var(--muted);white-space:nowrap}
+
+  .alert{font-size:.82rem;border-radius:var(--r-sm);padding:10px 12px}
+  .alert.warn{background:var(--surface-2);color:var(--warn);border:1px solid var(--line)}
+  .alert.err{background:var(--bad-bg);color:var(--bad)}
+  .foot{font-size:.74rem;color:var(--muted);text-align:center}
+  a{color:var(--accent)}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Simulador de riesgo crediticio</h1>
+    <p class="sub">Introduce los datos de un solicitante y el modelo XGBoost estima si se aprobaría o denegaría el crédito. Todo el cálculo ocurre en tu navegador.</p>
+  </header>
+
+  <section class="card">
+    <h2>Modelo</h2>
+    <div class="loader">
+      <label class="filebtn">Cargar modelo (.json)
+        <input type="file" id="file" accept="application/json,.json">
+      </label>
+      <button id="pastebtn" type="button">Pegar JSON</button>
+      <div class="status" id="status"></div>
+    </div>
+    <details id="pastewrap" style="margin-top:12px" hidden>
+      <summary style="cursor:pointer;font-size:.85rem;color:var(--accent)">Pega aquí el contenido de simulador_modelo.json</summary>
+      <textarea id="pastearea" rows="5" style="width:100%;margin-top:8px;font-family:var(--mono);font-size:.78rem;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--bg);color:var(--ink)"></textarea>
+      <button id="pasteload" type="button" class="primary" style="margin-top:8px">Cargar</button>
+    </details>
+    <div class="metrics" id="metrics" style="margin-top:14px"></div>
+  </section>
+
+  <form class="card" id="form">
+    <h2>Datos del solicitante</h2>
+    <div class="grid" id="fields-main"></div>
+    <details class="adv" id="adv" hidden>
+      <summary id="adv-summary">Más variables</summary>
+      <div class="grid" id="fields-rest"></div>
+    </details>
+    <div class="actions">
+      <button type="submit" class="primary">Evaluar solicitud</button>
+      <button type="reset" id="reset">Restablecer</button>
+    </div>
+  </form>
+
+  <section class="card" id="result" hidden></section>
+
+  <p class="foot">Herramienta de demostración con fines formativos. La puntuación es un score ordinal, no una probabilidad de impago calibrada. No constituye una decisión de crédito real.</p>
+</div>
+
+<script>
+// ---------- utilidades ----------
+const $ = s => document.querySelector(s);
+const nf = new Intl.NumberFormat('es-ES',{maximumFractionDigits:2});
+const nf0 = new Intl.NumberFormat('es-ES',{maximumFractionDigits:0});
+const sigmoid = z => 1/(1+Math.exp(-z));
+const logit = p => { p=Math.min(1-1e-7,Math.max(1e-7,p)); return Math.log(p/(1-p)); };
+const median = a => { const b=[...a].sort((x,y)=>x-y); const n=b.length; return n%2?b[(n-1)/2]:(b[n/2-1]+b[n/2])/2; };
+
+const ETIQUETAS = {
+  RATIO_SALDO_INGRESO:"Ratio deuda / ingreso",
+  RATIO_ABONOS_SALDO:"Ratio abonos / saldo",
+  INGRESO:"Ingreso mensual (€)",
+  EDAD:"Edad (años)",
+  MAX_ATRASO_U6M:"Máx. días de atraso (6 meses)",
+  MAX_ATRASO_U3M:"Máx. días de atraso (3 meses)",
+  MAX_ATRASO_U12M:"Máx. días de atraso (12 meses)",
+  SALDO_SSFF_ACTUAL:"Deuda actual en el sistema financiero (€)",
+  SALDO_ACTUAL:"Saldo actual (€)",
+  NUM_PRODUCTOS_BANCO:"Nº de productos con el banco",
+  MAX_ATRASO_SSFF_U24M:"Máx. atraso en el sistema (24 meses)",
+  NUM_MESES_MORA_SSFF_GT0_U24M:"Meses en mora en el sistema (24 m)",
+  NUM_MESES_MORA_SSFF_GT0_U36M:"Meses en mora en el sistema (36 m)",
+  RATIO_SALDO_SSFF_PROM_U3M_U24M:"Ratio saldo SSFF (3m vs 24m)",
+  EXP_MESES_BANCO:"Antigüedad en el banco (meses)",
+  RATIO_TRX_DIGITAL:"Ratio de transacciones digitales",
+  SCORE_APP_DIGITAL:"Score de app digital",
+  UTILIZACION_LINEA:"Utilización de la línea",
+  PD_MODELO_ANTERIOR:"PD del modelo anterior",
+  MAX_NUM_ENTIDADES_U12M:"Máx. nº de entidades (12 m)",
+  MAX_SALDO_U6M:"Máx. saldo (6 meses)",
+  MAX_SALDO_SSFF_U6M:"Máx. saldo sistema (6 m)",
+};
+const etiqueta = c => ETIQUETAS[c] || c;
+
+// ---------- motor del modelo ----------
+let MODEL = null;   // {trees, features, stats, importancia, umbral, intercept, metrics, demo}
+
+function prepTree(raw){
+  const map = {};
+  (function walk(n){ map[n.nodeid]=n; if(n.children) n.children.forEach(walk); })(raw);
+  return {root: map[0] || raw, map};
+}
+function leafValue(tree,row){
+  let n = tree.root;
+  while(n.leaf===undefined){
+    const v = row[n.split];
+    let id;
+    if(v===null||v===undefined||Number.isNaN(v)) id=n.missing;
+    else id = (v < n.split_condition) ? n.yes : n.no;
+    n = tree.map[id];
+  }
+  return n.leaf;
+}
+const treeSum = row => MODEL.trees.reduce((s,t)=>s+leafValue(t,row),0);
+const margin  = row => MODEL.intercept + treeSum(row);
+const predict = row => sigmoid(margin(row));
+
+function loadModelObject(data){
+  if(!data.trees || !data.features) throw new Error("El JSON no tiene 'trees' y 'features'.");
+  const trees = data.trees.map(prepTree);
+  MODEL = {
+    trees,
+    features: data.features,
+    stats: data.stats || {},
+    importancia: data.importancia || {},
+    umbral: (data.umbral!=null)? data.umbral : 0.5,
+    demo: !!data.demo,
+    metrics: {auc:data.auc_test, gini:data.gini_test, ks:data.ks_test},
+    intercept: 0,
+  };
+  // intercepto: desde ejemplos de verificación (robusto) o explícito (demo)
+  let maxErr = null;
+  if(data.verificacion && data.verificacion.length){
+    const ints = data.verificacion.map(ex => logit(ex.prob) - treeSum(ex.valores));
+    MODEL.intercept = median(ints);
+    maxErr = Math.max(...data.verificacion.map(ex => Math.abs(predict(ex.valores)-ex.prob)));
+  } else {
+    MODEL.intercept = data.intercept || 0;
+  }
+  MODEL.maxErr = maxErr;
+  renderStatus(); renderMetrics(); buildForm(); hideResult();
+}
+
+// ---------- interfaz ----------
+function renderStatus(){
+  const s = $('#status');
+  if(MODEL.demo){
+    s.innerHTML = `<span class="badge demo">DEMO</span> Modelo de ejemplo (${MODEL.features.length} variables). Carga tu <b>simulador_modelo.json</b> para usar tu modelo real.`;
+    return;
+  }
+  let badge = '';
+  if(MODEL.maxErr!=null){
+    badge = MODEL.maxErr < 0.01
+      ? `<span class="badge ok">verificado ✓</span>`
+      : `<span class="badge err">desviación ${(MODEL.maxErr*100).toFixed(1)}pp</span>`;
+  }
+  s.innerHTML = `${badge} Modelo cargado · <b>${MODEL.features.length}</b> variables · ${MODEL.trees.length} árboles`;
+}
+function renderMetrics(){
+  const m = MODEL.metrics, box = $('#metrics');
+  const cells = [];
+  if(m.auc!=null)  cells.push(['AUC', m.auc.toFixed(3)]);
+  if(m.gini!=null) cells.push(['Gini', m.gini.toFixed(3)]);
+  if(m.ks!=null)   cells.push(['KS', m.ks.toFixed(3)]);
+  cells.push(['Umbral', (MODEL.umbral*100).toFixed(1)+'%']);
+  box.innerHTML = cells.map(([k,v])=>`<div class="metric"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+}
+
+function stepFor(st){ return st && st.entera ? '1' : 'any'; }
+function boundsFor(st){
+  if(!st) return {min:undefined,max:undefined,val:0};
+  const lo = Math.min(st.min, st.p01), hi = Math.max(st.max, st.p99);
+  const margen = Math.max(Math.abs(hi-lo),1);
+  return {min: st.entera?Math.floor(lo):lo, max: st.entera?Math.ceil(hi+margen):hi+margen, val: st.mediana};
+}
+function fieldHTML(col){
+  const st = MODEL.stats[col], b = boundsFor(st);
+  const v = st ? (st.entera?Math.round(b.val):b.val) : 0;
+  return `<div class="field">
+    <label for="f_${col}">${etiqueta(col)}</label>
+    <div class="inrow">
+      <input type="number" id="f_${col}" data-col="${col}" step="${stepFor(st)}"
+             ${b.min!=null?`min="${b.min}"`:''} ${b.max!=null?`max="${b.max}"`:''} value="${v}">
+      <label class="nk" title="Tratar como dato faltante"><input type="checkbox" class="nk-chk" data-col="${col}"> N/D</label>
+    </div>
+    ${st?`<span class="hint">típico: ${nf.format(st.mediana)}</span>`:''}
+  </div>`;
+}
+function buildForm(){
+  const feats = [...MODEL.features];
+  feats.sort((a,b)=> (MODEL.importancia[b]||0) - (MODEL.importancia[a]||0));
+  const N = Math.min(8, feats.length);
+  const main = feats.slice(0,N), rest = feats.slice(N);
+  $('#fields-main').innerHTML = main.map(fieldHTML).join('');
+  const adv = $('#adv');
+  if(rest.length){
+    $('#fields-rest').innerHTML = rest.map(fieldHTML).join('');
+    $('#adv-summary').textContent = `Más variables (${rest.length})`;
+    adv.hidden = false;
+  } else adv.hidden = true;
+  // activar/desactivar input al marcar N/D
+  document.querySelectorAll('.nk-chk').forEach(chk=>{
+    chk.addEventListener('change',e=>{
+      const inp = document.getElementById('f_'+e.target.dataset.col);
+      inp.disabled = e.target.checked;
+    });
+  });
+}
+
+function readRow(){
+  const row = {};
+  MODEL.features.forEach(col=>{
+    const chk = document.querySelector(`.nk-chk[data-col="${col}"]`);
+    if(chk && chk.checked){ row[col] = NaN; return; }
+    const inp = document.getElementById('f_'+col);
+    const raw = inp ? inp.value : '';
+    row[col] = (raw==='' ) ? NaN : Number(raw);
+  });
+  return row;
+}
+
+function contribuciones(row){
+  const base = {};
+  MODEL.features.forEach(f=> base[f] = (MODEL.stats[f]? MODEL.stats[f].mediana : 0));
+  const m = margin(row);
+  const list = MODEL.features.map(f=>{
+    const r2 = Object.assign({}, row, {[f]: base[f]});
+    return {f, c: m - margin(r2), val: row[f]};
+  }).filter(x=> Math.abs(x.c) > 1e-6);
+  list.sort((a,b)=> Math.abs(b.c)-Math.abs(a.c));
+  return list.slice(0,6);
+}
+
+function hideResult(){ $('#result').hidden = true; }
+
+function evaluar(){
+  const row = readRow();
+  const prob = predict(row);
+  const umbral = MODEL.umbral;
+  const aprobado = prob < umbral;
+  const pct = Math.min(100, Math.max(0, prob*100));
+  const thr = Math.min(100, Math.max(0, umbral*100));
+
+  const contribs = contribuciones(row);
+  const filas = contribs.map(({f,c,val})=>{
+    const up = c>0;
+    const vtxt = (val===null||val===undefined||Number.isNaN(val)) ? 'N/D' : nf.format(val);
+    return `<div class="contrib">
+      <span class="dir ${up?'up':'down'}">${up?'▲':'▼'} ${c>0?'+':''}${c.toFixed(2)}</span>
+      <span class="nm"><b>${etiqueta(f)}</b> = ${vtxt}</span>
+      <span class="vv">${up?'sube riesgo':'baja riesgo'}</span>
+    </div>`;
+  }).join('') || `<p class="cap">Todos los valores coinciden con el cliente típico: sin factores diferenciales.</p>`;
+
+  $('#result').innerHTML = `
+    <div class="verdict ${aprobado?'ap':'dn'}">
+      <span class="tag">${aprobado?'✅ Crédito aprobado':'❌ Crédito denegado'}</span>
+      <span class="score">score ${pct.toFixed(1)}% · umbral ${thr.toFixed(1)}%</span>
+    </div>
+    <div class="gauge"><div class="fill ${aprobado?'ap':'dn'}" style="width:${pct}%"></div></div>
+    <div class="thrline"><div class="mark" style="left:${thr}%">umbral</div></div>
+    <p class="cap">Se aprueba cuando el score queda por debajo del umbral de corte (${thr.toFixed(1)}%). ${MODEL.demo?'<b>Modo demostración:</b> umbral y pesos de ejemplo.':''}</p>
+    <div class="why">
+      <h3>¿Por qué? · frente a un cliente típico</h3>
+      ${filas}
+      <p class="cap">Contribuciones en log-odds por ablación: cuánto mueve el riesgo cada valor respecto a la mediana de esa variable.</p>
+    </div>`;
+  $('#result').hidden = false;
+  $('#result').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ---------- carga de ficheros / pegado ----------
+function parseAndLoad(text){
+  try{
+    const data = JSON.parse(text);
+    loadModelObject(data);
+  }catch(err){
+    $('#status').innerHTML = `<span class="badge err">error</span> No se pudo leer el modelo: ${err.message}`;
+  }
+}
+$('#file').addEventListener('change',e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=> parseAndLoad(r.result);
+  r.onerror = ()=> $('#status').innerHTML = `<span class="badge err">error</span> No se pudo leer el fichero.`;
+  r.readAsText(f);
+});
+$('#pastebtn').addEventListener('click',()=>{ const w=$('#pastewrap'); w.hidden=!w.hidden; });
+$('#pasteload').addEventListener('click',()=>{ const t=$('#pastearea').value.trim(); if(t) parseAndLoad(t); });
+
+$('#form').addEventListener('submit',e=>{ e.preventDefault(); evaluar(); });
+$('#form').addEventListener('reset',()=>{ setTimeout(()=>{ document.querySelectorAll('.nk-chk').forEach(c=>{c.checked=false; document.getElementById('f_'+c.dataset.col).disabled=false;}); hideResult(); },0); });
+
+// ---------- modelo DEMO embebido (4 variables, árboles de ejemplo) ----------
+const DEMO = {
+  demo:true,
+  features:["RATIO_SALDO_INGRESO","MAX_ATRASO_U6M","INGRESO","EDAD"],
+  umbral:0.45,
+  importancia:{RATIO_SALDO_INGRESO:120,MAX_ATRASO_U6M:80,INGRESO:45,EDAD:20},
+  intercept:-0.35,
+  stats:{
+    RATIO_SALDO_INGRESO:{mediana:1.2,min:0,max:12,p01:0,p99:8,entera:false},
+    MAX_ATRASO_U6M:{mediana:0,min:0,max:120,p01:0,p99:60,entera:true},
+    INGRESO:{mediana:2500,min:400,max:12000,p01:700,p99:9000,entera:false},
+    EDAD:{mediana:40,min:20,max:75,p01:21,p99:70,entera:true},
+  },
+  trees:[
+    {nodeid:0,split:"RATIO_SALDO_INGRESO",split_condition:1.6,yes:1,no:2,missing:1,children:[
+      {nodeid:1,leaf:-0.55},
+      {nodeid:2,split:"RATIO_SALDO_INGRESO",split_condition:4.0,yes:3,no:4,missing:3,children:[
+        {nodeid:3,leaf:0.35},{nodeid:4,leaf:0.85}]}]},
+    {nodeid:0,split:"MAX_ATRASO_U6M",split_condition:1,yes:1,no:2,missing:1,children:[
+      {nodeid:1,leaf:-0.4},
+      {nodeid:2,split:"MAX_ATRASO_U6M",split_condition:30,yes:3,no:4,missing:4,children:[
+        {nodeid:3,leaf:0.5},{nodeid:4,leaf:0.95}]}]},
+    {nodeid:0,split:"INGRESO",split_condition:2000,yes:1,no:2,missing:2,children:[
+      {nodeid:1,leaf:0.3},{nodeid:2,leaf:-0.28}]},
+    {nodeid:0,split:"EDAD",split_condition:30,yes:1,no:2,missing:2,children:[
+      {nodeid:1,leaf:0.22},{nodeid:2,leaf:-0.16}]},
+  ],
+};
+loadModelObject(DEMO);
+</script>
+
+</body></html>
