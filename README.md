@@ -11,9 +11,9 @@ Predecir qué clientes incurrirán en mora (60 días de impago dentro de una ven
 
 ```
 .
-├── notebook.ipynb            # Pipeline completo: EDA, selección, modelos, explicabilidad
+├── modelo_credit_risk.py            # Pipeline completo: EDA, selección, modelos, explicabilidad
 ├── exportar_simulador.py     # Exporta el modelo a simulador_modelo.json
-├── simulador.html            # Simulador web autónomo (corre el modelo en el navegador)
+├── simulador_de_credito.html            # Simulador web autónomo (corre el modelo en el navegador)
 └── README.md
 ```
 
